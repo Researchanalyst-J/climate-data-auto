@@ -1,17 +1,20 @@
 library(ecmwfr)
 library(googledrive)
 
-# 1. Authenticate Copernicus (Directly inside R to fix the password error!)
-cds_key <- Sys.getenv("CDS_API_KEY")
-wf_set_key(user = "api", key = cds_key, service = "cds")
+# 1. Tell R to store the password in the cloud's temporary memory
+options(keyring_backend = "env")
 
-# 2. Log into Google Drive using your secret key
+# 2. Authenticate Copernicus (No "service" argument needed in the new version!)
+cds_key <- Sys.getenv("CDS_API_KEY")
+wf_set_key(user = "api", key = cds_key)
+
+# 3. Log into Google Drive using your secret key
 drive_auth(path = "gdrive_key.json")
 
-# 3. Check what is already inside your Google Drive
+# 4. Check what is already inside your Google Drive
 existing_files <- drive_ls("ERA5_Data")$name
 
-# 4. Figure out which 4-year batch is next
+# 5. Figure out which 4-year batch is next
 all_years <- 1940:2025
 year_batches <- split(all_years, ceiling(seq_along(all_years) / 4))
 
@@ -31,7 +34,7 @@ if (is.null(target_batch)) {
 
 print(paste("Downloading:", target_fname))
 
-# 5. Request the data from Copernicus
+# 6. Request the data from Copernicus
 request <- list(
   dataset_short_name = "reanalysis-era5-single-levels",
   product_type   = "reanalysis",
@@ -48,7 +51,7 @@ request <- list(
 # Download it to the GitHub server
 wf_request(user = "api", request = request, transfer = TRUE, path = ".", verbose = TRUE)
 
-# 6. Move it to Google Drive and delete it from GitHub
+# 7. Move it to Google Drive and delete it from GitHub
 print("Uploading to Google Drive...")
 drive_upload(target_fname, path = "ERA5_Data/")
 file.remove(target_fname)
