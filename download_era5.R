@@ -1,38 +1,34 @@
-# 1. Load the required packages
-if (!require("ecmwfr")) install.packages("ecmwfr")
 library(ecmwfr)
+library(googledrive)
 
-# Note: We do not need API credentials here because GitHub will 
-# create the .cdsapirc file for us automatically!
+# 1. Log into Google Drive using your secret key
+drive_auth(path = "gdrive_key.json")
 
-# 2. Define the Sequence (1940 to 2025 in 4-year batches)
+# 2. Check what is already inside your Google Drive
+# Make sure your folder in Google Drive is named exactly "ERA5_Data"
+existing_files <- drive_ls("ERA5_Data")$name
+
+# 3. Figure out which 4-year batch is next
 all_years <- 1940:2025
-batch_size <- 4
-year_groups <- split(all_years, ceiling(seq_along(all_years) / batch_size))
-
-# 3. Figure out which batch to download next
-# It looks for files we have already saved
-existing_files <- list.files(pattern = "tz_mw_solar_.*\\.nc")
+year_batches <- split(all_years, ceiling(seq_along(all_years) / 4))
 
 target_batch <- NULL
-for (group in year_groups) {
-  fname <- paste0("tz_mw_solar_", min(group), "_", max(group), ".nc")
+for (batch in year_batches) {
+  fname <- paste0("era5_", min(batch), "_", max(batch), ".nc")
   if (!(fname %in% existing_files)) {
-    target_batch <- group
-    target_filename <- fname
+    target_batch <- batch
+    target_fname <- fname
     break
   }
 }
 
-# Exit if everything is completely done
 if (is.null(target_batch)) {
-  print("SUCCESS: All data from 1940 to 2025 has been downloaded.")
-  quit(save = "no")
+  stop("Success: All files are already in Google Drive!")
 }
 
-print(paste("Downloading batch:", paste(target_batch, collapse = ", ")))
+print(paste("Downloading:", target_fname))
 
-# 4. The Request (Tanzania & Malawi limits)
+# 4. Request the data from Copernicus
 request <- list(
   dataset_short_name = "reanalysis-era5-single-levels",
   product_type   = "reanalysis",
@@ -40,18 +36,18 @@ request <- list(
   year           = as.character(target_batch),
   month          = sprintf("%02d", 1:12),
   day            = sprintf("%02d", 1:31),
-  time           = sprintf("%02d:00", 6:18), # Daytime hours
-  area           = c(-0.9, 29.3, -11.8, 40.5), # North, West, South, East
+  time           = sprintf("%02d:00", 6:18),
+  area           = c(-0.9, 29.3, -11.8, 40.5),
   format         = "netcdf",
-  target         = target_filename
+  target         = target_fname
 )
 
-# 5. Start Request & Download
-# The code will pause here and wait for the CDS server to finish
-wf_request(
-  user = "api", # Tells ecmwfr to use the .cdsapirc file
-  request = request,
-  transfer = TRUE,
-  path = ".",
-  verbose = TRUE
-)
+# Download it to the GitHub server
+# Because we built the .cdsapirc file in the YAML, we can just use user = "api"
+wf_request(user = "api", request = request, transfer = TRUE, path = ".", verbose = TRUE)
+
+# 5. Move it to Google Drive and delete it from GitHub
+print("Uploading to Google Drive...")
+drive_upload(target_fname, path = "ERA5_Data/")
+file.remove(target_fname)
+print("Done!")
