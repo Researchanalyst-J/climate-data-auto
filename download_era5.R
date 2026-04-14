@@ -40,7 +40,7 @@ request <- list(
   year           = as.character(target_batch),
   month          = sprintf("%02d", 1:12),
   day            = sprintf("%02d", 1:31),
-  time           = sprintf("%02d:00", 0:23), # All 24 hours!
+  time           = sprintf("%02d:00", 6:18), # All 24 hours!
   area           = c(-0.9, 29.3, -11.8, 40.5),
   format         = "netcdf",
   target         = target_fname
