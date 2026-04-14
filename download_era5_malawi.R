@@ -5,7 +5,7 @@ options(keyring_backend = "env")
 wf_set_key(user = "api", key = Sys.getenv("CDS_API_KEY"))
 drive_auth(cache = "gdrive_token", email = TRUE)
 
-existing_files <- drive_ls("ERA5_Data")$name
+existing_files <- drive_ls("ERA5_Data") $name
 all_years <- 1940:2025
 year_batches <- split(all_years, ceiling(seq_along(all_years) / 2))
 
@@ -36,7 +36,7 @@ wf_request(
     target         = target_fname
   ),
   transfer = TRUE, path = ".", verbose = TRUE,
-  wait = 60
+  retry = 1
 )
 
 drive_upload(target_fname, path = "ERA5_Data/")
