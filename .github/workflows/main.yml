@@ -1,9 +1,9 @@
-name: Auto-Download ERA5 to Drive
+name: Auto-Download ERA5 to Google Drive
 
 on:
   schedule:
-    - cron: '0 */6 * * *' 
-  workflow_dispatch:      
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   run-script:
@@ -17,9 +17,6 @@ jobs:
 
       - name: Install R Packages
         run: Rscript -e "install.packages(c('ecmwfr', 'googledrive'))"
-
-      - name: Make Google Drive Key File
-        run: echo '${{ secrets.GDRIVE_JSON }}' > gdrive_key.json
 
       - name: Run Script
         env:
