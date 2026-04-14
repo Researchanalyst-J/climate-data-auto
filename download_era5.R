@@ -1,24 +1,19 @@
 library(ecmwfr)
 library(googledrive)
 
-# 1. Connect to Copernicus
+# Connect
 options(keyring_backend = "env")
-cds_key <- Sys.getenv("CDS_API_KEY")
-wf_set_key(user = "api", key = cds_key)
-
-# 2. Connect to Google Drive using your token
+wf_set_key(user = "api", key = Sys.getenv("CDS_API_KEY"))
 drive_auth(cache = "gdrive_token", email = TRUE)
 
-# 3. Figure out which 4-year batch is next
 existing_files <- drive_ls("ERA5_Data")$name
 
 all_years <- 1940:2025
-year_batches <- split(all_years, ceiling(seq_along(all_years) / 4))
+year_batches <- split(all_years, ceiling(seq_along(all_years) / 2)) # 2 Years!
 
 target_batch <- NULL
 for (batch in year_batches) {
-  # I updated the name so you know it is UV and 24-hour data
-  fname <- paste0("era5_uv_24hr_", min(batch), "_", max(batch), ".nc")
+  fname <- paste0("era5_uv_daylight_tanzania_", min(batch), "_", max(batch), ".nc")
   if (!(fname %in% existing_files)) {
     target_batch <- batch
     target_fname <- fname
@@ -26,30 +21,27 @@ for (batch in year_batches) {
   }
 }
 
-if (is.null(target_batch)) {
-  stop("Success: All files have been downloaded to Google Drive!")
-}
+if (is.null(target_batch)) stop("All Tanzania data downloaded!")
 
-print(paste("Downloading:", target_fname))
-
-# 4. Request the data from Copernicus
-request <- list(
-  dataset_short_name = "reanalysis-era5-single-levels",
-  product_type   = "reanalysis",
-  variable       = "downward_uv_radiation_at_the_surface", # Switched to UV!
-  year           = as.character(target_batch),
-  month          = sprintf("%02d", 1:12),
-  day            = sprintf("%02d", 1:31),
-  time           = sprintf("%02d:00", 6:18), # All 24 hours!
-  area           = c(-0.9, 29.3, -11.8, 40.5),
-  format         = "netcdf",
-  target         = target_fname
+# REQUEST WITH SMART RETRY
+# This prevents the "Rate Limit" error by being more patient
+wf_request(
+  user = "api",
+  request = list(
+    dataset_short_name = "reanalysis-era5-single-levels",
+    product_type   = "reanalysis",
+    variable       = "downward_uv_radiation_at_the_surface", 
+    year           = as.character(target_batch),
+    month          = sprintf("%02d", 1:12),
+    day            = sprintf("%02d", 1:31),
+    time           = sprintf("%02d:00", 6:18), 
+    area           = c(-0.9, 29.3, -11.8, 40.5), 
+    format         = "netcdf",
+    target         = target_fname
+  ),
+  transfer = TRUE, path = ".", verbose = TRUE,
+  retry = 0.5 # Tells R to wait longer between pings to avoid "Spam" errors
 )
 
-wf_request(user = "api", request = request, transfer = TRUE, path = ".", verbose = TRUE)
-
-# 5. Move it to Google Drive and delete it from GitHub
-print("Uploading to Google Drive...")
 drive_upload(target_fname, path = "ERA5_Data/")
 file.remove(target_fname)
-print("Batch complete!")
