@@ -1,20 +1,19 @@
 library(ecmwfr)
 library(googledrive)
 
-# 1. Tell R to store the password in the cloud's temporary memory
+# 1. Connect to Copernicus
 options(keyring_backend = "env")
-
-# 2. Authenticate Copernicus (No "service" argument needed in the new version!)
 cds_key <- Sys.getenv("CDS_API_KEY")
 wf_set_key(user = "api", key = cds_key)
 
-# 3. Log into Google Drive using your secret key
-drive_auth(path = "gdrive_key.json")
+# 2. Connect to Google Drive using the folder you just uploaded!
+# email = TRUE tells it to grab the slip out of the folder automatically
+drive_auth(cache = "gdrive_token", email = TRUE)
 
-# 4. Check what is already inside your Google Drive
+# 3. Figure out which 4-year batch is next
+# Make sure your folder in Google Drive is named exactly "ERA5_Data"
 existing_files <- drive_ls("ERA5_Data")$name
 
-# 5. Figure out which 4-year batch is next
 all_years <- 1940:2025
 year_batches <- split(all_years, ceiling(seq_along(all_years) / 4))
 
@@ -29,12 +28,12 @@ for (batch in year_batches) {
 }
 
 if (is.null(target_batch)) {
-  stop("Success: All files are already in Google Drive!")
+  stop("Success: All files have been downloaded to Google Drive!")
 }
 
 print(paste("Downloading:", target_fname))
 
-# 6. Request the data from Copernicus
+# 4. Request the data from Copernicus
 request <- list(
   dataset_short_name = "reanalysis-era5-single-levels",
   product_type   = "reanalysis",
@@ -48,11 +47,10 @@ request <- list(
   target         = target_fname
 )
 
-# Download it to the GitHub server
 wf_request(user = "api", request = request, transfer = TRUE, path = ".", verbose = TRUE)
 
-# 7. Move it to Google Drive and delete it from GitHub
+# 5. Move it to Google Drive and delete it from GitHub to save space
 print("Uploading to Google Drive...")
 drive_upload(target_fname, path = "ERA5_Data/")
 file.remove(target_fname)
-print("Done!")
+print("Batch complete!")
