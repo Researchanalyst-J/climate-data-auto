@@ -40,7 +40,7 @@ request <- list(
   year           = as.character(target_batch),
   month          = sprintf("%02d", 1:12),
   day            = sprintf("%02d", 1:31),
-  time           = sprintf("%02d:00", 0:23), 
+  time           = sprintf("%02d:00", 6:18), 
   area           = c(-9.3, 32.6, -17.1, 35.9), # Malawi Box (North, West, South, East)
   format         = "netcdf",
   target         = target_fname
