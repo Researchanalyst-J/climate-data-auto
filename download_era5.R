@@ -21,8 +21,9 @@ for (batch in year_batches) {
 
 if (is.null(target_batch)) stop("Done!")
 
-# THE FIX: We added 'wait = 60'. 
-# This tells the robot to only check the server once per minute.
+# THE CORRECT FIX: 
+# We use 'retry = 1'. This tells the package to be significantly 
+# more patient when checking if the file is ready.
 wf_request(
   user = "api",
   request = list(
@@ -38,7 +39,7 @@ wf_request(
     target         = target_fname
   ),
   transfer = TRUE, path = ".", verbose = TRUE,
-  wait = 60 
+  retry = 1
 )
 
 drive_upload(target_fname, path = "ERA5_Data_Malawi/")
