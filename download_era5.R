@@ -1,19 +1,17 @@
 library(ecmwfr)
 library(googledrive)
 
-# Connect
 options(keyring_backend = "env")
 wf_set_key(user = "api", key = Sys.getenv("CDS_API_KEY"))
 drive_auth(cache = "gdrive_token", email = TRUE)
 
-existing_files <- drive_ls("ERA5_Data")$name
-
+existing_files <- drive_ls("ERA5_Data_Malawi")$name
 all_years <- 1940:2025
-year_batches <- split(all_years, ceiling(seq_along(all_years) / 2)) # 2 Years!
+year_batches <- split(all_years, ceiling(seq_along(all_years) / 2))
 
 target_batch <- NULL
 for (batch in year_batches) {
-  fname <- paste0("era5_uv_daylight_tanzania_", min(batch), "_", max(batch), ".nc")
+  fname <- paste0("era5_uv_daylight_malawi_", min(batch), "_", max(batch), ".nc")
   if (!(fname %in% existing_files)) {
     target_batch <- batch
     target_fname <- fname
@@ -21,10 +19,10 @@ for (batch in year_batches) {
   }
 }
 
-if (is.null(target_batch)) stop("All Tanzania data downloaded!")
+if (is.null(target_batch)) stop("Done!")
 
-# REQUEST WITH SMART RETRY
-# This prevents the "Rate Limit" error by being more patient
+# THE FIX: We added 'wait = 60'. 
+# This tells the robot to only check the server once per minute.
 wf_request(
   user = "api",
   request = list(
@@ -35,13 +33,13 @@ wf_request(
     month          = sprintf("%02d", 1:12),
     day            = sprintf("%02d", 1:31),
     time           = sprintf("%02d:00", 6:18), 
-    area           = c(-0.9, 29.3, -11.8, 40.5), 
+    area           = c(-9.3, 32.6, -17.1, 35.9), 
     format         = "netcdf",
     target         = target_fname
   ),
   transfer = TRUE, path = ".", verbose = TRUE,
-  retry = 0.5 # Tells R to wait longer between pings to avoid "Spam" errors
+  wait = 60 
 )
 
-drive_upload(target_fname, path = "ERA5_Data/")
+drive_upload(target_fname, path = "ERA5_Data_Malawi/")
 file.remove(target_fname)
