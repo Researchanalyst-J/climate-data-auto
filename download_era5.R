@@ -5,6 +5,7 @@ options(keyring_backend = "env")
 wf_set_key(user = "api", key = Sys.getenv("CDS_API_KEY"))
 drive_auth(cache = "gdrive_token", email = TRUE)
 
+# Focus strictly on the Tanzania folder
 existing_files <- drive_ls("ERA5_Data")$name
 all_years <- 1940:2025
 year_batches <- split(all_years, ceiling(seq_along(all_years) / 3))
@@ -35,7 +36,7 @@ request <- list(
   format         = "netcdf", target = target_fname
 )
 
-# Built-in secure download
+# Standard Built-in Download
 wf_request(user = "api", request = request, transfer = TRUE, path = ".")
 
 drive_upload(target_fname, path = "ERA5_Data/")
