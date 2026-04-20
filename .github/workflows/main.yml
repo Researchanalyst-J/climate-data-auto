@@ -2,7 +2,7 @@ name: Auto-Download ERA5 to Google Drive
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Runs at the top of the hour (e.g., 1:00, 2:00)
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -22,9 +22,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
 
-      - name: Install R Packages
+      - name: Install R Packages with pak
         run: |
-          Rscript -e 'install.packages(c("ecmwfr", "googledrive"), repos="https://cloud.r-project.org/")'
+          Rscript -e 'install.packages("pak", repos="https://cloud.r-project.org/")'
+          Rscript -e 'pak::pkg_install(c("ecmwfr", "googledrive"))'
 
       - name: Run Script
         env:
