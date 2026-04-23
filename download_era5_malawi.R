@@ -38,7 +38,17 @@ request <- list(
 )
 
 # Standard Built-in Download (Fixed Rate Limit & Timeout)
-wf_request(user = "api", request = request, transfer = TRUE, path = ".", retry = 120, time_out = 18000)
+# We are increasing the retry to 5 minutes (300 seconds) 
+# and explicitly telling it not to be verbose to avoid spamming the logs.
+wf_request(
+  user = "api", 
+  request = request, 
+  transfer = TRUE, 
+  path = ".", 
+  retry = 300, 
+  time_out = 18000,
+  verbose = FALSE
+)
 
 drive_upload(target_fname, path = "ERA5_Data_Malawi/")
 file.remove(target_fname)
