@@ -27,13 +27,14 @@ print(paste("Starting Malawi Batch:", target_fname))
 request <- list(
   dataset_short_name = "reanalysis-era5-single-levels",
   product_type   = "reanalysis",
-  variable       = "downward_uv_radiation_at_the_surface", 
+  variable       = "downward_uv_radiation_at_the_surface",
   year           = as.character(target_batch),
-  month          = sprintf("%02d", 1:12), 
+  month          = sprintf("%02d", 1:12),
   day            = sprintf("%02d", 1:31),
-  time           = sprintf("%02d:00", 6:18), 
-  area           = c(-9.3, 32.6, -17.1, 35.9),
-  format         = "netcdf", target = target_fname
+  time           = sprintf("%02d:00", 4:16),
+  area           = c(-9.0, 32.5, -17.2, 35.9),
+  format         = "netcdf",
+  target         = target_fname
 )
 
 # Standard Built-in Download
