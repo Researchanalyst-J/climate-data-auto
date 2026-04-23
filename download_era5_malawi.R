@@ -37,8 +37,8 @@ request <- list(
   target         = target_fname
 )
 
-# Standard Built-in Download
-wf_request(user = "api", request = request, transfer = TRUE, path = ".")
+# Standard Built-in Download (Fixed Rate Limit & Timeout)
+wf_request(user = "api", request = request, transfer = TRUE, path = ".", retry = 120, time_out = 18000)
 
 drive_upload(target_fname, path = "ERA5_Data_Malawi/")
 file.remove(target_fname)
