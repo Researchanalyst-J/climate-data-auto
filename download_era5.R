@@ -32,7 +32,7 @@ request <- list(
   month          = sprintf("%02d", 1:12),
   day            = sprintf("%02d", 1:31),
   time           = sprintf("%02d:00", 3:15),
-  area           = c(-1.0, 29.0, -11.8, 40.5),
+  area           = c(-0.8, 28.8, -12.0, 40.7),
   format         = "netcdf",
   target         = target_fname
 )
