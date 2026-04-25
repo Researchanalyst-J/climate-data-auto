@@ -30,8 +30,8 @@ jobs:
       - name: Run Script
         env:
           CDS_API_KEY: ${{ secrets.CDS_API_KEY }}
-          GDRIVE_CONFIG: ${{ secrets.GDRIVE_JSON }}
+          GDRIVE_PERSONAL: ${{ secrets.GDRIVE_PERSONAL }}
         run: |
           mkdir -p gdrive_token
-          echo "$GDRIVE_CONFIG" > gdrive_token/token_file
+          echo "$GDRIVE_PERSONAL" | base64 --decode > gdrive_token/token.rds
           Rscript download_era5.R
