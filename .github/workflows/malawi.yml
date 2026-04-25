@@ -33,5 +33,5 @@ jobs:
           GDRIVE_PERSONAL: ${{ secrets.GDRIVE_PERSONAL }}
         run: |
           mkdir -p gdrive_token
-          echo "$GDRIVE_PERSONAL" | base64 --decode > gdrive_token/jacobn158@gmail.com
+          echo "$GDRIVE_PERSONAL" | base64 --decode > gdrive_token/token.rds
           Rscript download_era5_malawi.R
