@@ -32,12 +32,6 @@ jobs:
           CDS_API_KEY: ${{ secrets.CDS_API_KEY }}
           GDRIVE_CONFIG: ${{ secrets.GDRIVE_JSON }}
         run: |
-          # Create the folder and the token file from your Secret
           mkdir -p gdrive_token
           echo "$GDRIVE_CONFIG" > gdrive_token/token_file
-          
-          # Force R to authenticate using the path before running the main script
-          Rscript -e 'googledrive::drive_auth(path = "gdrive_token/token_file")'
-          
-          # Run your script
           Rscript download_era5.R
