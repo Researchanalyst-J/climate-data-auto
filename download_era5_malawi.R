@@ -4,8 +4,8 @@ library(googledrive)
 options(keyring_backend = "env")
 wf_set_key(user = "api", key = Sys.getenv("CDS_API_KEY"))
 
-# Force R to load the specific file directly, bypassing the cache search
-drive_auth(token = readRDS("gdrive_token/token.rds"))
+# Let the package dynamically find the exactly named file we just created
+drive_auth(cache = "gdrive_token", email = "jacobn158@gmail.com")
 
 # Focus strictly on the Malawi folder
 existing_files <- drive_ls("ERA5_Data_Malawi")$name
