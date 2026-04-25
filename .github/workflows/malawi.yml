@@ -30,4 +30,8 @@ jobs:
       - name: Run Script
         env:
           CDS_API_KEY: ${{ secrets.CDS_API_KEY }}
-        run: Rscript download_era5_malawi.R
+          GDRIVE_CONFIG: ${{ secrets.GDRIVE_JSON }}
+        run: |
+          mkdir -p gdrive_token
+          echo "$GDRIVE_CONFIG" > gdrive_token/token_file
+          Rscript download_era5_malawi.R
