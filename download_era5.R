@@ -3,7 +3,9 @@ library(googledrive)
 
 options(keyring_backend = "env")
 wf_set_key(user = "api", key = Sys.getenv("CDS_API_KEY"))
-drive_auth(path = "gdrive_token/token_file")
+
+# Tell R to use the folder containing your newly rebuilt personal token
+drive_auth(cache = "gdrive_token", email = TRUE)
 
 # Focus strictly on the Tanzania folder
 existing_files <- drive_ls("ERA5_Data")$name
