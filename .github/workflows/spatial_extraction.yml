@@ -1,0 +1,57 @@
+name: ERA5 Spatial Extraction Pipeline
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  process-tanzania:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install System Spatial Libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgdal-dev libgeos-dev libproj-dev libsqlite3-dev
+
+      - name: Setup R Environment
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+
+      - name: Install R Packages
+        run: |
+          install.packages(c("googledrive", "terra", "exactextractr", "sf", "geodata", "dplyr", "tidyr", "lubridate"))
+        shell: Rscript {0}
+
+      - name: Run Tanzania Extraction Script
+        env:
+          GDRIVE_AUTH_TOKEN: ${{ secrets.GDRIVE_AUTH_TOKEN }}
+        run: Rscript R_scri/tanzania_pipeline.R
+
+  process-malawi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install System Spatial Libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgdal-dev libgeos-dev libproj-dev libsqlite3-dev
+
+      - name: Setup R Environment
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+
+      - name: Install R Packages
+        run: |
+          install.packages(c("googledrive", "terra", "exactextractr", "sf", "geodata", "dplyr", "tidyr", "lubridate"))
+        shell: Rscript {0}
+
+      - name: Run Malawi Extraction Script
+        env:
+          GDRIVE_AUTH_TOKEN: ${{ secrets.GDRIVE_AUTH_TOKEN }}
+        run: Rscript R_scri/malawi_pipeline.R
