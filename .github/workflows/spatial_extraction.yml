@@ -33,9 +33,10 @@ jobs:
 
       - name: Decode Token & Run Tanzania Script
         env:
-          ENCODED_TOKEN: ${{ secrets.GDRIVE_PERSONAL }}
+          GDRIVE_PERSONAL: ${{ secrets.GDRIVE_PERSONAL }}
         run: |
-          export GDRIVE_AUTH_TOKEN=$(echo "$ENCODED_TOKEN" | base64 --decode)
+          mkdir -p gdrive_token
+          echo "$GDRIVE_PERSONAL" | base64 --decode > gdrive_token/c13dc354db9600c8cd9b2bd868d1bf25_jacobn158@gmail.com
           Rscript scripts/tanzania_pipeline.R
 
   process-malawi:
@@ -66,7 +67,8 @@ jobs:
 
       - name: Decode Token & Run Malawi Script
         env:
-          ENCODED_TOKEN: ${{ secrets.GDRIVE_PERSONAL }}
+          GDRIVE_PERSONAL: ${{ secrets.GDRIVE_PERSONAL }}
         run: |
-          export GDRIVE_AUTH_TOKEN=$(echo "$ENCODED_TOKEN" | base64 --decode)
+          mkdir -p gdrive_token
+          echo "$GDRIVE_PERSONAL" | base64 --decode > gdrive_token/c13dc354db9600c8cd9b2bd868d1bf25_jacobn158@gmail.com
           Rscript scripts/malawi_pipeline.R
