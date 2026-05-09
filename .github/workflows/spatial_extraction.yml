@@ -6,11 +6,8 @@ on:
 jobs:
 
   process-tanzania:
-
     runs-on: ubuntu-latest
-
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -29,39 +26,21 @@ jobs:
         with:
           r-version: 'release'
 
-      - name: Install R Packages
+      - name: Install R Packages with pak
         run: |
-          install.packages(
-            c(
-              "googledrive",
-              "terra",
-              "exactextractr",
-              "sf",
-              "geodata",
-              "dplyr",
-              "tidyr",
-              "lubridate"
-            ),
-            repos = "https://cloud.r-project.org"
-          )
-        shell: Rscript {0}
+          Rscript -e 'install.packages("pak", repos="https://cloud.r-project.org/")'
+          Rscript -e 'pak::pkg_install(c("googledrive", "terra", "exactextractr", "sf", "geodata", "dplyr", "tidyr", "lubridate"))'
 
       - name: Decode Token & Run Tanzania Script
         env:
           ENCODED_TOKEN: ${{ secrets.GDRIVE_PERSONAL }}
         run: |
-          echo "GDRIVE_AUTH_TOKEN<<EOF" >> $GITHUB_ENV
-          echo "$ENCODED_TOKEN" | base64 --decode >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          export GDRIVE_AUTH_TOKEN=$(echo "$ENCODED_TOKEN" | base64 --decode)
           Rscript scripts/tanzania_pipeline.R
 
-
   process-malawi:
-
     runs-on: ubuntu-latest
-
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -80,28 +59,14 @@ jobs:
         with:
           r-version: 'release'
 
-      - name: Install R Packages
+      - name: Install R Packages with pak
         run: |
-          install.packages(
-            c(
-              "googledrive",
-              "terra",
-              "exactextractr",
-              "sf",
-              "geodata",
-              "dplyr",
-              "tidyr",
-              "lubridate"
-            ),
-            repos = "https://cloud.r-project.org"
-          )
-        shell: Rscript {0}
+          Rscript -e 'install.packages("pak", repos="https://cloud.r-project.org/")'
+          Rscript -e 'pak::pkg_install(c("googledrive", "terra", "exactextractr", "sf", "geodata", "dplyr", "tidyr", "lubridate"))'
 
       - name: Decode Token & Run Malawi Script
         env:
           ENCODED_TOKEN: ${{ secrets.GDRIVE_PERSONAL }}
         run: |
-          echo "GDRIVE_AUTH_TOKEN<<EOF" >> $GITHUB_ENV
-          echo "$ENCODED_TOKEN" | base64 --decode >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          export GDRIVE_AUTH_TOKEN=$(echo "$ENCODED_TOKEN" | base64 --decode)
           Rscript scripts/malawi_pipeline.R
