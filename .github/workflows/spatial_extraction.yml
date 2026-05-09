@@ -27,8 +27,9 @@ jobs:
 
       - name: Run Tanzania Extraction Script
         env:
-          GDRIVE_AUTH_TOKEN: ${{ secrets.GDRIVE_AUTH_TOKEN }}
-        run: Rscript R_scri/tanzania_pipeline.R
+          # This maps your existing secret 'GDRIVE_JSON' to the script's requirement
+          GDRIVE_AUTH_TOKEN: ${{ secrets.GDRIVE_JSON }}
+        run: Rscript scripts/tanzania_pipeline.R
 
   process-malawi:
     runs-on: ubuntu-latest
@@ -53,5 +54,6 @@ jobs:
 
       - name: Run Malawi Extraction Script
         env:
-          GDRIVE_AUTH_TOKEN: ${{ secrets.GDRIVE_AUTH_TOKEN }}
-        run: Rscript R_scri/malawi_pipeline.R
+          # This maps your existing secret 'GDRIVE_JSON' to the script's requirement
+          GDRIVE_AUTH_TOKEN: ${{ secrets.GDRIVE_JSON }}
+        run: Rscript scripts/malawi_pipeline.R
