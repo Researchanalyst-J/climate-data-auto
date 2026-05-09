@@ -7,79 +7,306 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 
+# ==============================================================================
 # 1. AUTHENTICATE
+# ==============================================================================
+
 print("Authenticating with Google Drive...")
+
 auth_json <- tempfile(fileext = ".json")
-writeLines(Sys.getenv("GDRIVE_AUTH_TOKEN"), auth_json)
+
+writeLines(
+  Sys.getenv("GDRIVE_AUTH_TOKEN"),
+  auth_json
+)
+
 drive_auth(path = auth_json)
 
+# ==============================================================================
 # 2. FETCH BOUNDARIES
+# ==============================================================================
+
 print("Downloading Tanzania boundaries...")
-tz_map_raw <- gadm(country = "TZA", level = 1, path = tempdir())
+
+tz_map_raw <- gadm(
+  country = "TZA",
+  level = 1,
+  path = tempdir()
+)
+
 tz_regions <- st_as_sf(tz_map_raw) %>%
-  filter(NAME_1 %in% c("Arusha", "Dar es Salaam", "Dodoma", "Geita", "Kagera", 
-                       "Katavi", "Kigoma", "Manyara", "Mara", "Morogoro", 
-                       "Mwanza", "Pwani", "Shinyanga", "Simiyu", "Singida", 
-                       "Tabora", "Tanga"))
+  filter(
+    NAME_1 %in% c(
+      "Arusha",
+      "Dar es Salaam",
+      "Dodoma",
+      "Geita",
+      "Kagera",
+      "Katavi",
+      "Kigoma",
+      "Manyara",
+      "Mara",
+      "Morogoro",
+      "Mwanza",
+      "Pwani",
+      "Shinyanga",
+      "Simiyu",
+      "Singida",
+      "Tabora",
+      "Tanga"
+    )
+  )
+
 num_regions <- nrow(tz_regions)
 
+print(paste("Number of Tanzania regions:", num_regions))
+
+# ==============================================================================
 # 3. LOCATE FILES
-drive_files <- drive_ls("ERA5_Data", pattern = "\\.nc$")
+# ==============================================================================
+
+drive_files <- drive_ls(
+  "ERA5_Data",
+  pattern = "\\.nc$"
+)
+
 print(paste("Found", nrow(drive_files), "files."))
 
+if (nrow(drive_files) == 0) {
+  stop("No NetCDF files found in Google Drive folder.")
+}
+
+# ==============================================================================
 # 4. OUTPUT SETUP
+# ==============================================================================
+
 master_csv <- "Tanzania_Hourly_UV_Master.csv"
 validation_log <- "Tanzania_Validation_Log.csv"
 
-# 5. THE LOOP
+# ==============================================================================
+# 5. PROCESS FILES
+# ==============================================================================
+
 for (i in seq_len(nrow(drive_files))) {
+
   current_drive_file <- drive_files[i, ]
+
   local_nc_file <- current_drive_file$name
+
   print(paste("Processing:", local_nc_file))
-  
-  drive_download(current_drive_file, path = local_nc_file, overwrite = TRUE)
-  
+
+  # ---------------------------------------------------------------------------
+  # DOWNLOAD FILE
+  # ---------------------------------------------------------------------------
+
+  drive_download(
+    current_drive_file,
+    path = local_nc_file,
+    overwrite = TRUE
+  )
+
+  # ---------------------------------------------------------------------------
+  # LOAD RASTER
+  # ---------------------------------------------------------------------------
+
   uv_raster <- rast(local_nc_file)
+
   raw_layers <- nlyr(uv_raster)
-  
+
+  print(paste("Raster layers:", raw_layers))
+
+  # ---------------------------------------------------------------------------
+  # CONVERT TIMEZONE
+  # ---------------------------------------------------------------------------
+
   utc_times <- time(uv_raster)
-  local_times <- with_tz(utc_times, tzone = "Africa/Dar_es_Salaam")
-  time_strings <- format(local_times, "%Y-%m-%d %H:%M:%S")
-  
+
+  local_times <- with_tz(
+    utc_times,
+    tzone = "Africa/Dar_es_Salaam"
+  )
+
+  time_strings <- format(
+    local_times,
+    "%Y-%m-%d %H:%M:%S"
+  )
+
+  # ---------------------------------------------------------------------------
+  # RENAME LAYERS
+  # ---------------------------------------------------------------------------
+
   layer_ids <- paste0("L", seq_len(raw_layers))
+
   names(uv_raster) <- layer_ids
-  
-  extracted_data <- exact_extract(uv_raster, tz_regions, 'mean', progress = FALSE)
+
+  # ---------------------------------------------------------------------------
+  # EXTRACT REGIONAL MEANS
+  # ---------------------------------------------------------------------------
+
+  extracted_data <- exact_extract(
+    uv_raster,
+    tz_regions,
+    "mean",
+    progress = FALSE
+  )
+
   extracted_data$Region <- tz_regions$NAME_1
   extracted_data$Country <- "Tanzania"
-  
-  time_mapping <- data.frame(Dummy_Name = paste0("mean.", layer_ids), Datetime_Local = time_strings)
-  
+
+  # ---------------------------------------------------------------------------
+  # TIME LOOKUP TABLE
+  # ---------------------------------------------------------------------------
+
+  time_mapping <- data.frame(
+    Dummy_Name = paste0("mean.", layer_ids),
+    Datetime_Local = time_strings
+  )
+
+  # ---------------------------------------------------------------------------
+  # CLEAN OUTPUT
+  # ---------------------------------------------------------------------------
+
   clean_data <- extracted_data %>%
-    pivot_longer(cols = starts_with("mean.L"), names_to = "Dummy_Name", values_to = "Hourly_Mean_UV_Dose") %>%
-    left_join(time_mapping, by = "Dummy_Name") %>%
-    select(Datetime_Local, Country, Region, Hourly_Mean_UV_Dose)
-  
+    pivot_longer(
+      cols = starts_with("mean.L"),
+      names_to = "Dummy_Name",
+      values_to = "Hourly_Mean_UV_Dose"
+    ) %>%
+    left_join(
+      time_mapping,
+      by = "Dummy_Name"
+    ) %>%
+    select(
+      Datetime_Local,
+      Country,
+      Region,
+      Hourly_Mean_UV_Dose
+    )
+
+  # ---------------------------------------------------------------------------
+  # VALIDATION
+  # ---------------------------------------------------------------------------
+
   processed_rows <- nrow(clean_data)
+
   expected_rows <- raw_layers * num_regions
-  status <- ifelse(processed_rows == expected_rows, "PASSED", "FAILED")
-  
-  log_entry <- data.frame(File_Name = local_nc_file, Raw_Time_Layers = raw_layers, 
-                          Expected_Rows = expected_rows, Processed_Rows = processed_rows, Status = status)
-  
+
+  status <- ifelse(
+    processed_rows == expected_rows,
+    "PASSED",
+    "FAILED"
+  )
+
+  print(
+    paste(
+      "Validation:",
+      status,
+      "| Expected:",
+      expected_rows,
+      "| Processed:",
+      processed_rows
+    )
+  )
+
+  log_entry <- data.frame(
+    File_Name = local_nc_file,
+    Raw_Time_Layers = raw_layers,
+    Expected_Rows = expected_rows,
+    Processed_Rows = processed_rows,
+    Status = status
+  )
+
+  # ---------------------------------------------------------------------------
+  # WRITE OUTPUT
+  # ---------------------------------------------------------------------------
+
   if (i == 1) {
-    write.csv(clean_data, master_csv, row.names = FALSE)
-    write.csv(log_entry, validation_log, row.names = FALSE)
+
+    write.csv(
+      clean_data,
+      master_csv,
+      row.names = FALSE
+    )
+
+    write.csv(
+      log_entry,
+      validation_log,
+      row.names = FALSE
+    )
+
   } else {
-    write.table(clean_data, master_csv, sep = ",", append = TRUE, col.names = FALSE, row.names = FALSE)
-    write.table(log_entry, validation_log, sep = ",", append = TRUE, col.names = FALSE, row.names = FALSE)
+
+    write.table(
+      clean_data,
+      master_csv,
+      sep = ",",
+      append = TRUE,
+      col.names = FALSE,
+      row.names = FALSE
+    )
+
+    write.table(
+      log_entry,
+      validation_log,
+      sep = ",",
+      append = TRUE,
+      col.names = FALSE,
+      row.names = FALSE
+    )
   }
-  
+
+  # ---------------------------------------------------------------------------
+  # CLEANUP
+  # ---------------------------------------------------------------------------
+
   file.remove(local_nc_file)
-  rm(uv_raster, extracted_data, clean_data, utc_times, local_times, time_strings, layer_ids, time_mapping)
+
+  rm(
+    uv_raster,
+    extracted_data,
+    clean_data,
+    utc_times,
+    local_times,
+    time_strings,
+    layer_ids,
+    time_mapping
+  )
+
   gc()
 }
 
-# 6. UPLOAD
-drive_upload(media = master_csv, path = "ERA5_Data/", name = master_csv, overwrite = TRUE)
-drive_upload(media = validation_log, path = "ERA5_Data/", name = validation_log, overwrite = TRUE)
+# ==============================================================================
+# 6. REMOVE EXISTING DRIVE FILES
+# ==============================================================================
+
+existing_master <- drive_find(master_csv)
+
+if (nrow(existing_master) > 0) {
+  drive_rm(existing_master)
+}
+
+existing_log <- drive_find(validation_log)
+
+if (nrow(existing_log) > 0) {
+  drive_rm(existing_log)
+}
+
+# ==============================================================================
+# 7. UPLOAD OUTPUT
+# ==============================================================================
+
+print("Uploading outputs to Google Drive...")
+
+drive_upload(
+  media = master_csv,
+  path = "ERA5_Data",
+  name = master_csv
+)
+
+drive_upload(
+  media = validation_log,
+  path = "ERA5_Data",
+  name = validation_log
+)
+
+print("Tanzania pipeline complete.")
