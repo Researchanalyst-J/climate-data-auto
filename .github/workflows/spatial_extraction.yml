@@ -46,11 +46,14 @@ jobs:
           )
         shell: Rscript {0}
 
-      - name: Run Tanzania Extraction Script
+      - name: Decode Token & Run Tanzania Script
         env:
-          GDRIVE_AUTH_TOKEN: ${{ secrets.GDRIVE_JSON }}
-        run: Rscript scripts/tanzania_pipeline.R
-
+          ENCODED_TOKEN: ${{ secrets.GDRIVE_PERSONAL }}
+        run: |
+          echo "GDRIVE_AUTH_TOKEN<<EOF" >> $GITHUB_ENV
+          echo "$ENCODED_TOKEN" | base64 --decode >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          Rscript scripts/tanzania_pipeline.R
 
 
   process-malawi:
@@ -94,7 +97,11 @@ jobs:
           )
         shell: Rscript {0}
 
-      - name: Run Malawi Extraction Script
+      - name: Decode Token & Run Malawi Script
         env:
-          GDRIVE_AUTH_TOKEN: ${{ secrets.GDRIVE_JSON }}
-        run: Rscript scripts/malawi_pipeline.R
+          ENCODED_TOKEN: ${{ secrets.GDRIVE_PERSONAL }}
+        run: |
+          echo "GDRIVE_AUTH_TOKEN<<EOF" >> $GITHUB_ENV
+          echo "$ENCODED_TOKEN" | base64 --decode >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          Rscript scripts/malawi_pipeline.R
