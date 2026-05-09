@@ -28,7 +28,7 @@ num_regions <- nrow(tz_regions)
 print(paste("Number of Tanzania regions:", num_regions))
 
 # ==============================================================================
-# 3. LOCATE FILES
+# 3. LOCATE FILES & CHECK PROGRESS
 # ==============================================================================
 drive_files <- drive_ls("ERA5_Data", pattern = "\\.nc$")
 print(paste("Found", nrow(drive_files), "files."))
@@ -37,18 +37,33 @@ if (nrow(drive_files) == 0) {
   stop("No NetCDF files found in Google Drive folder.")
 }
 
-# ==============================================================================
-# 4. OUTPUT SETUP
-# ==============================================================================
 master_csv <- "Tanzania_Hourly_UV_Master.csv"
 validation_log <- "Tanzania_Validation_Log.csv"
 
+# Download existing progress if it exists to resume
+processed_files <- c()
+existing_log <- drive_find(validation_log)
+if (nrow(existing_log) > 0) {
+  print("Found previous run! Resuming progress...")
+  drive_download(existing_log, path = validation_log, overwrite = TRUE)
+  drive_download(drive_find(master_csv), path = master_csv, overwrite = TRUE)
+  log_data <- read.csv(validation_log)
+  processed_files <- log_data$File_Name
+}
+
 # ==============================================================================
-# 5. PROCESS FILES
+# 4. PROCESS FILES (WITH AUTO-SAVE)
 # ==============================================================================
 for (i in seq_len(nrow(drive_files))) {
   current_drive_file <- drive_files[i, ]
   local_nc_file <- current_drive_file$name
+  
+  # Check if we already processed this file in a previous run
+  if (local_nc_file %in% processed_files) {
+    print(paste("Skipping already processed file:", local_nc_file))
+    next
+  }
+
   print(paste("Processing:", local_nc_file))
 
   drive_download(current_drive_file, path = local_nc_file, overwrite = TRUE)
@@ -82,7 +97,8 @@ for (i in seq_len(nrow(drive_files))) {
   log_entry <- data.frame(File_Name = local_nc_file, Raw_Time_Layers = raw_layers, 
                           Expected_Rows = expected_rows, Processed_Rows = processed_rows, Status = status)
 
-  if (i == 1) {
+  # Append or create local files
+  if (!file.exists(master_csv)) {
     write.csv(clean_data, master_csv, row.names = FALSE)
     write.csv(log_entry, validation_log, row.names = FALSE)
   } else {
@@ -90,24 +106,14 @@ for (i in seq_len(nrow(drive_files))) {
     write.table(log_entry, validation_log, sep = ",", append = TRUE, col.names = FALSE, row.names = FALSE)
   }
 
+  # UPLOAD IMMEDIATELY TO SAVE PROGRESS (drive_put overwrites the old version on drive)
+  print("Saving progress to Google Drive...")
+  drive_put(media = master_csv, path = "ERA5_Data/", name = master_csv)
+  drive_put(media = validation_log, path = "ERA5_Data/", name = validation_log)
+
   file.remove(local_nc_file)
   rm(uv_raster, extracted_data, clean_data, utc_times, local_times, time_strings, layer_ids, time_mapping)
   gc()
 }
 
-# ==============================================================================
-# 6. REMOVE EXISTING DRIVE FILES
-# ==============================================================================
-existing_master <- drive_find(master_csv)
-if (nrow(existing_master) > 0) drive_rm(existing_master)
-
-existing_log <- drive_find(validation_log)
-if (nrow(existing_log) > 0) drive_rm(existing_log)
-
-# ==============================================================================
-# 7. UPLOAD OUTPUT
-# ==============================================================================
-print("Uploading outputs to Google Drive...")
-drive_upload(media = master_csv, path = "ERA5_Data", name = master_csv)
-drive_upload(media = validation_log, path = "ERA5_Data", name = validation_log)
 print("Tanzania pipeline complete.")
