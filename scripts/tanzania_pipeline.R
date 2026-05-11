@@ -7,31 +7,16 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 
-# ==============================================================================
+script_start_time <- Sys.time()
+
 # 1. AUTHENTICATE
-# ==============================================================================
 print("Authenticating with Google Drive...")
 options(gargle_oauth_cache = "gdrive_token")
 drive_auth(cache = "gdrive_token", email = "jacobn158@gmail.com")
 
-# ==============================================================================
-# 2. FETCH BOUNDARIES
-# ==============================================================================
-print("Downloading Tanzania boundaries...")
-tz_map_raw <- gadm(country = "TZA", level = 1, path = tempdir())
-tz_regions <- st_as_sf(tz_map_raw) %>%
-  filter(NAME_1 %in% c("Arusha", "Dar es Salaam", "Dodoma", "Geita", "Kagera", 
-                       "Katavi", "Kigoma", "Manyara", "Mara", "Morogoro", 
-                       "Mwanza", "Pwani", "Shinyanga", "Simiyu", "Singida", 
-                       "Tabora", "Tanga"))
-num_regions <- nrow(tz_regions)
-print(paste("Number of Tanzania regions:", num_regions))
-
-# ==============================================================================
-# 3. LOCATE FILES & CHECK PROGRESS
-# ==============================================================================
+# 2. LOCATE TARGET FILES
 drive_files <- drive_ls("ERA5_Data", pattern = "\\.nc$")
-print(paste("Found", nrow(drive_files), "files."))
+print(paste("Found", nrow(drive_files), "NetCDF files in Drive."))
 
 if (nrow(drive_files) == 0) {
   stop("No NetCDF files found in Google Drive folder.")
@@ -40,32 +25,54 @@ if (nrow(drive_files) == 0) {
 master_csv <- "Tanzania_Hourly_UV_Master.csv"
 validation_log <- "Tanzania_Validation_Log.csv"
 
-# Download existing progress if it exists to resume
+# 3. CHECK PROGRESS (THE COMPLETION CHECK)
 processed_files <- c()
 existing_log <- drive_find(validation_log)
+
 if (nrow(existing_log) > 0) {
-  print("Found previous run! Resuming progress...")
+  print("Found previous run! Checking progress...")
   drive_download(existing_log, path = validation_log, overwrite = TRUE)
   drive_download(drive_find(master_csv), path = master_csv, overwrite = TRUE)
   log_data <- read.csv(validation_log)
   processed_files <- log_data$File_Name
 }
 
-# ==============================================================================
-# 4. PROCESS FILES (WITH AUTO-SAVE)
-# ==============================================================================
+# --- THE SMART COMPLETION CHECK ---
+if (length(unique(processed_files)) >= nrow(drive_files)) {
+  print("✅ TANZANIA IS 100% COMPLETE! All files have been processed.")
+  print("Exiting script early to save compute time.")
+  quit(save = "no", status = 0)
+}
+
+# 4. FETCH BOUNDARIES
+print("Downloading Tanzania boundaries...")
+tz_map_raw <- gadm(country = "TZA", level = 1, path = tempdir())
+tz_regions <- st_as_sf(tz_map_raw) %>%
+  filter(NAME_1 %in% c("Arusha", "Dar es Salaam", "Dodoma", "Geita", "Kagera", 
+                       "Katavi", "Kigoma", "Manyara", "Mara", "Morogoro", 
+                       "Mwanza", "Pwani", "Shinyanga", "Simiyu", "Singida", 
+                       "Tabora", "Tanga"))
+num_regions <- nrow(tz_regions)
+
+# 5. PROCESS FILES
 for (i in seq_len(nrow(drive_files))) {
+  
+  # --- THE 5h 40m SAFETY SWITCH ---
+  elapsed_hours <- as.numeric(difftime(Sys.time(), script_start_time, units = "hours"))
+  if (elapsed_hours > 5.66) {
+    print("Approaching 5h 40m limit. Pausing safely to prevent data duplication.")
+    break
+  }
+
   current_drive_file <- drive_files[i, ]
   local_nc_file <- current_drive_file$name
   
-  # Check if we already processed this file in a previous run
   if (local_nc_file %in% processed_files) {
     print(paste("Skipping already processed file:", local_nc_file))
     next
   }
 
   print(paste("Processing:", local_nc_file))
-
   drive_download(current_drive_file, path = local_nc_file, overwrite = TRUE)
 
   uv_raster <- rast(local_nc_file)
@@ -92,12 +99,10 @@ for (i in seq_len(nrow(drive_files))) {
   processed_rows <- nrow(clean_data)
   expected_rows <- raw_layers * num_regions
   status <- ifelse(processed_rows == expected_rows, "PASSED", "FAILED")
-  print(paste("Validation:", status, "| Expected:", expected_rows, "| Processed:", processed_rows))
-
+  
   log_entry <- data.frame(File_Name = local_nc_file, Raw_Time_Layers = raw_layers, 
                           Expected_Rows = expected_rows, Processed_Rows = processed_rows, Status = status)
 
-  # Append or create local files
   if (!file.exists(master_csv)) {
     write.csv(clean_data, master_csv, row.names = FALSE)
     write.csv(log_entry, validation_log, row.names = FALSE)
@@ -106,7 +111,6 @@ for (i in seq_len(nrow(drive_files))) {
     write.table(log_entry, validation_log, sep = ",", append = TRUE, col.names = FALSE, row.names = FALSE)
   }
 
-  # UPLOAD IMMEDIATELY TO SAVE PROGRESS (drive_put overwrites the old version on drive)
   print("Saving progress to Google Drive...")
   drive_put(media = master_csv, path = "ERA5_Data/", name = master_csv)
   drive_put(media = validation_log, path = "ERA5_Data/", name = validation_log)
@@ -115,5 +119,4 @@ for (i in seq_len(nrow(drive_files))) {
   rm(uv_raster, extracted_data, clean_data, utc_times, local_times, time_strings, layer_ids, time_mapping)
   gc()
 }
-
-print("Tanzania pipeline complete.")
+print("Tanzania pipeline session completed.")
